@@ -26,12 +26,18 @@ export default async function ClientesPage() {
       direccion: c.direccion ?? undefined,
       notas: c.notas ?? undefined,
       activo: c.activo,
+      foto_dni_url: (c as any).fotoDniUrl ?? undefined,
       created_at: c.createdAt.toISOString(),
       updated_at: c.updatedAt.toISOString(),
       deuda_total: deuda,
       prestamos_activos: activos.length,
+      
     }
   })
 
-  return <ClientesClient clientes={clientesConDeuda} />
+  return (
+    <div style={{ animation: 'fadeUp 0.4s ease' }}>
+      <ClientesClient clientes={clientesConDeuda} />
+    </div>
+  )
 }

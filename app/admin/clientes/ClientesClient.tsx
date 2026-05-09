@@ -287,13 +287,44 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
   return (
     <div style={{ animation: 'fadeUp 0.4s ease' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, letterSpacing: '-0.02em', marginBottom: 4 }}>Clientes</h1>
-          <p style={{ color: 'var(--text-2)', fontSize: 14 }}>{clientes.length} clientes activos</p>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>
+          Clientes
+        </h1>
+        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>{clientes.length} clientes activos</p>
+      </div>
+
+      {/* Stats rápidas */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        {[
+          { label: 'Total',     value: String(clientes.length),                                                          color: 'var(--text)' },
+          { label: 'Al día',    value: String(clientes.filter(c => c.deuda_total === 0).length),                         color: 'var(--accent)' },
+          { label: 'Con deuda', value: String(clientes.filter(c => c.deuda_total > 0).length),                           color: 'var(--red)' },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.875rem', boxShadow: 'var(--shadow-sm)', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 24, color: s.color, fontWeight: 700 }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginTop: 3 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Barra acciones */}
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <input
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre o teléfono..."
+          style={{ flex: 1, minWidth: 200, padding: '0.75rem 1rem', background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text)', fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none', boxShadow: 'var(--shadow-sm)' }}
+          onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-dim)' }}
+          onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'var(--shadow-sm)' }}
+        />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {([['todos', 'Todos'], ['al_dia', 'Al día'], ['con_deuda', 'Con deuda']] as const).map(([v, l]) => (
+            <button key={v} onClick={() => setFiltro(v)} style={{ padding: '0.625rem 1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${filtro === v ? 'var(--accent)' : 'var(--border)'}`, background: filtro === v ? 'var(--accent-dim)' : '#fff', color: filtro === v ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)', fontWeight: filtro === v ? 700 : 500 }}>{l}</button>
+          ))}
         </div>
-        <button onClick={abrirNuevo} style={{ padding: '0.625rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
-          + Nuevo cliente
+        <button onClick={abrirNuevo} style={{ padding: '0.625rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)', boxShadow: '0 4px 12px var(--accent-dim)', whiteSpace: 'nowrap' }}>
+          + Nuevo
         </button>
       </div>
 
@@ -308,69 +339,135 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
       </div>
 
       {/* Tabla */}
-      <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Cliente', 'Teléfono', 'Préstamos', 'Deuda total', 'Estado', 'DNI', 'Acceso', 'Acciones'].map(h => (
-                  <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-3)' }}>Sin clientes</td></tr>
-              )}
-              {filtrados.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}
-                  onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-3)')}
-                  onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <div style={{ fontWeight: 500 }}>{c.nombre} {c.apellido}</div>
-                    {c.email && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{c.email}</div>}
-                  </td>
-                  <td style={{ padding: '0.875rem 1rem', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>{c.telefono || '—'}</td>
-                  <td style={{ padding: '0.875rem 1rem', color: 'var(--text-2)', textAlign: 'center' }}>{c.prestamos_activos}</td>
-                  <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                    <span style={{ color: c.deuda_total > 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(c.deuda_total)}</span>
-                  </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <span style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 600, background: c.deuda_total > 0 ? 'var(--red-dim)' : 'var(--green-dim)', color: c.deuda_total > 0 ? 'var(--red)' : 'var(--green)' }}>
-                      {c.deuda_total > 0 ? 'Con deuda' : 'Al día'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    {c.foto_dni_url ? (
-                      <button onClick={() => verDni(c)} style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 600, background: 'var(--accent-dim)', color: 'var(--accent-light)', border: '1px solid rgba(99,102,241,0.2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-                        📷 Ver DNI
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Sin foto</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <span style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 600, background: c.user_id ? 'var(--green-dim)' : 'var(--bg-4)', color: c.user_id ? 'var(--green)' : 'var(--text-3)' }}>
-                      {c.user_id ? '✓ Con acceso' : 'Sin acceso'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.875rem 1rem' }}>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <a href={`/admin/clientes/${c.id}`} style={{ padding: '0.3rem 0.75rem', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', textDecoration: 'none', fontSize: 12 }}>Ver</a>
-                      <button onClick={() => abrirEditar(c)} style={{ padding: '0.3rem 0.75rem', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--accent-light)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)' }}>Editar</button>
-                      <button onClick={() => abrirAcceso(c)} style={{ padding: '0.3rem 0.75rem', background: c.user_id ? 'var(--bg-3)' : 'var(--accent-dim)', border: `1px solid ${c.user_id ? 'var(--border)' : 'rgba(99,102,241,0.3)'}`, borderRadius: 'var(--radius-sm)', color: c.user_id ? 'var(--text-3)' : 'var(--accent-light)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)' }}>
-                        {c.user_id ? 'Acceso' : '+ Acceso'}
-                      </button>
-                      <button onClick={() => eliminar(c.id, c.user_id ?? undefined)} style={{ padding: '0.3rem 0.75rem', background: 'var(--red-dim)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-sm)', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)' }}>✕</button>
-                    </div>
-                  </td>
+      {/* Lista de clientes — cards en mobile, tabla en PC */}
+      <div className="clientes-lista">
+
+        {/* Vista cards — mobile */}
+        <div className="clientes-cards">
+          {filtrados.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)', background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+              Sin clientes
+            </div>
+          )}
+          {filtrados.map(c => (
+            <div key={c.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '0.875rem' }}>
+                {/* Avatar */}
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: c.deuda_total > 0 ? 'rgba(186,26,26,0.1)' : 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, color: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)', flexShrink: 0, position: 'relative' }}>
+                  {c.nombre.charAt(0).toUpperCase()}
+                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: '50%', background: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)', border: '2px solid #fff' }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 2 }}>{c.nombre} {c.apellido}</div>
+                  {c.email && <div style={{ fontSize: 12, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)', fontWeight: 700 }}>{fmt(c.deuda_total)}</div>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: c.deuda_total > 0 ? 'rgba(186,26,26,0.08)' : 'var(--accent-dim)', color: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {c.deuda_total > 0 ? 'Con deuda' : 'Al día'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                {c.telefono && <span style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{c.telefono}</span>}
+                <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 'auto' }}>{c.prestamos_activos} préstamo{c.prestamos_activos !== 1 ? 's' : ''}</span>
+                {c.user_id && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'var(--accent-dim)', color: 'var(--accent)', fontWeight: 700 }}>✓ Acceso</span>}
+                {c.foto_dni_url && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'var(--bg-3)', color: 'var(--text-3)', fontWeight: 700 }}>📷 DNI</span>}
+              </div>
+
+              <div style={{ display: 'flex', gap: 6, marginTop: '0.75rem' }}>
+                <a href={`/admin/clientes/${c.id}`} style={{ flex: 1, padding: '0.5rem', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', textDecoration: 'none', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>Ver</a>
+                <button onClick={() => abrirEditar(c)} style={{ flex: 1, padding: '0.5rem', background: 'var(--accent-dim)', border: '1px solid rgba(0,107,50,0.2)', borderRadius: 'var(--radius-sm)', color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)' }}>Editar</button>
+                <button onClick={() => abrirAcceso(c)} style={{ flex: 1, padding: '0.5rem', background: c.user_id ? 'var(--bg-2)' : 'var(--accent-dim)', border: `1px solid ${c.user_id ? 'var(--border)' : 'rgba(0,107,50,0.2)'}`, borderRadius: 'var(--radius-sm)', color: c.user_id ? 'var(--text-3)' : 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+                  {c.user_id ? 'Acceso' : '+ Acceso'}
+                </button>
+                <button onClick={() => eliminar(c.id, c.user_id ?? undefined)} style={{ padding: '0.5rem 0.75rem', background: 'rgba(186,26,26,0.08)', border: '1px solid rgba(186,26,26,0.15)', borderRadius: 'var(--radius-sm)', color: 'var(--red)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)' }}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Vista tabla — PC */}
+        <div className="clientes-tabla" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}>
+                  {['Cliente', 'Teléfono', 'Préstamos', 'Deuda total', 'Estado', 'DNI', 'Acceso', 'Acciones'].map(h => (
+                    <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtrados.length === 0 && (
+                  <tr><td colSpan={8} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-3)' }}>Sin clientes</td></tr>
+                )}
+                {filtrados.map(c => (
+                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.1s' }}
+                    onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-2)')}
+                    onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.deuda_total > 0 ? 'rgba(186,26,26,0.08)' : 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)', flexShrink: 0 }}>
+                          {c.nombre.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{c.nombre} {c.apellido}</div>
+                          {c.email && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{c.email}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem', color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>{c.telefono || '—'}</td>
+                    <td style={{ padding: '0.875rem 1rem', textAlign: 'center', fontSize: 13, color: 'var(--text-2)' }}>{c.prestamos_activos}</td>
+                    <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                      <span style={{ color: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)', fontWeight: 700 }}>{fmt(c.deuda_total)}</span>
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      <span style={{ padding: '0.25rem 0.75rem', borderRadius: 20, fontSize: 11, fontWeight: 700, background: c.deuda_total > 0 ? 'rgba(186,26,26,0.08)' : 'var(--accent-dim)', color: c.deuda_total > 0 ? 'var(--red)' : 'var(--accent)' }}>
+                        {c.deuda_total > 0 ? 'Con deuda' : 'Al día'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      {c.foto_dni_url ? (
+                        <button onClick={() => verDni(c)} style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'var(--accent-dim)', color: 'var(--accent)', border: '1px solid rgba(0,107,50,0.2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                          📷 Ver
+                        </button>
+                      ) : <span style={{ fontSize: 11, color: 'var(--text-3)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      <span style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 700, background: c.user_id ? 'var(--accent-dim)' : 'var(--bg-3)', color: c.user_id ? 'var(--accent)' : 'var(--text-3)' }}>
+                        {c.user_id ? '✓ Activo' : 'Sin acceso'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.875rem 1rem' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <a href={`/admin/clientes/${c.id}`} style={{ padding: '0.3rem 0.75rem', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>Ver</a>
+                        <button onClick={() => abrirEditar(c)} style={{ padding: '0.3rem 0.75rem', background: 'var(--accent-dim)', border: '1px solid rgba(0,107,50,0.2)', borderRadius: 'var(--radius-sm)', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-body)' }}>Editar</button>
+                        <button onClick={() => abrirAcceso(c)} style={{ padding: '0.3rem 0.75rem', background: c.user_id ? 'var(--bg-2)' : 'var(--accent-dim)', border: `1px solid ${c.user_id ? 'var(--border)' : 'rgba(0,107,50,0.2)'}`, borderRadius: 'var(--radius-sm)', color: c.user_id ? 'var(--text-3)' : 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600 }}>
+                          {c.user_id ? 'Acceso' : '+ Acceso'}
+                        </button>
+                        <button onClick={() => eliminar(c.id, c.user_id ?? undefined)} style={{ padding: '0.3rem 0.625rem', background: 'rgba(186,26,26,0.08)', border: '1px solid rgba(186,26,26,0.15)', borderRadius: 'var(--radius-sm)', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)' }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        .clientes-cards  { display: flex; flex-direction: column; gap: 0.875rem; }
+        .clientes-tabla  { display: none; }
+
+        @media (min-width: 900px) {
+          .clientes-cards { display: none; }
+          .clientes-tabla { display: block; }
+        }
+      `}</style>
 
       {/* Modal nuevo/editar */}
       {(modal === 'nuevo' || modal === 'editar') && (

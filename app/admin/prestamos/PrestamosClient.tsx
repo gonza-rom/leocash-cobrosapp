@@ -135,72 +135,133 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
 
   return (
     <div style={{ animation: 'fadeUp 0.4s ease' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, letterSpacing: '-0.02em', marginBottom: 4 }}>Préstamos</h1>
-          <p style={{ color: 'var(--text-2)', fontSize: 14 }}>{prestamos.length} préstamos en total</p>
-        </div>
-        <button onClick={() => { setModal(true); setError('') }} style={{ padding: '0.625rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-body)' }}>
-          + Nuevo préstamo
-        </button>
+
+      {/* Header */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>Préstamos</h1>
+        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>{prestamos.length} préstamos en total</p>
       </div>
 
-      {/* Filtros */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: '1rem' }}>
-        {([['todos', 'Todos'], ['activo', 'Activos'], ['pagado', 'Pagados']] as const).map(([v, l]) => (
-          <button key={v} onClick={() => setFiltro(v)} style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${filtro === v ? 'var(--accent)' : 'var(--border)'}`, background: filtro === v ? 'var(--accent-dim)' : 'var(--bg-2)', color: filtro === v ? 'var(--accent-light)' : 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)' }}>{l}</button>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1.25rem' }}>
+        {[
+          { label: 'Activos',  value: String(prestamos.filter(p => p.estado === 'activo').length),  color: 'var(--accent)' },
+          { label: 'Pagados',  value: String(prestamos.filter(p => p.estado === 'pagado').length),  color: 'var(--text-2)' },
+          { label: 'Vencidos', value: String(prestamos.filter(p => p.estado === 'vencido').length), color: 'var(--red)' },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '0.875rem', boxShadow: 'var(--shadow-sm)', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 24, color: s.color, fontWeight: 700 }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginTop: 3 }}>{s.label}</div>
+          </div>
         ))}
       </div>
 
-      <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+      {/* Barra acciones */}
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+          {([['todos', 'Todos'], ['activo', 'Activos'], ['pagado', 'Pagados']] as const).map(([v, l]) => (
+            <button key={v} onClick={() => setFiltro(v)} style={{ padding: '0.625rem 1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${filtro === v ? 'var(--accent)' : 'var(--border)'}`, background: filtro === v ? 'var(--accent-dim)' : '#fff', color: filtro === v ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)', fontWeight: filtro === v ? 700 : 500 }}>{l}</button>
+          ))}
+        </div>
+        <button onClick={() => { setModal(true); setError('') }} style={{ padding: '0.625rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)', boxShadow: '0 4px 12px var(--accent-dim)', whiteSpace: 'nowrap' }}>
+          + Nuevo
+        </button>
+      </div>
+
+      {/* Cards mobile */}
+      <div className="prestamos-cards">
+        {filtrados.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)', background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>Sin préstamos</div>
+        )}
+        {filtrados.map(p => {
+          const pendiente = p.monto_total - p.monto_pagado
+          const pct = p.monto_total > 0 ? Math.round((p.monto_pagado / p.monto_total) * 100) : 0
+          return (
+            <div key={p.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem', boxShadow: 'var(--shadow-sm)', borderLeft: `4px solid ${p.estado === 'pagado' ? 'var(--accent)' : p.estado === 'activo' ? 'var(--accent)' : 'var(--red)'}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{p.clientes.nombre} {p.clientes.apellido}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{p.descripcion}</div>
+                </div>
+                <span style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 10, fontWeight: 700, background: p.estado === 'pagado' ? 'var(--accent-dim)' : p.estado === 'activo' ? 'var(--accent-dim)' : 'rgba(186,26,26,0.08)', color: p.estado === 'pagado' ? 'var(--accent)' : p.estado === 'activo' ? 'var(--accent)' : 'var(--red)' }}>
+                  {p.estado}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: '0.75rem' }}>
+                {[
+                  { label: 'Cuota', value: fmt(p.monto_cuota) },
+                  { label: 'Pagado', value: fmt(p.monto_pagado), color: 'var(--accent)' },
+                  { label: 'Pendiente', value: fmt(pendiente), color: pendiente > 0 ? 'var(--red)' : 'var(--accent)' },
+                ].map(s => (
+                  <div key={s.label} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 3 }}>{s.label}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: s.color ?? 'var(--text)', fontWeight: 700 }}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: 6, background: 'var(--bg-3)', borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
+                <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 3 }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginBottom: '0.75rem' }}>
+                <span>{p.cuotas_pagadas}/{p.cantidad_cuotas} cuotas</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{pct}%</span>
+              </div>
+              {p.estado === 'activo' && (
+                <a href={`/admin/pagos?prestamo=${p.id}&cliente=${p.cliente_id}`} style={{ display: 'block', textAlign: 'center', padding: '0.5rem', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
+                  Registrar pago
+                </a>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Tabla PC */}
+      <div className="prestamos-tabla" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}>
                 {['Cliente', 'Descripción', 'Cuota', 'Pagado', 'Pendiente', 'Cuotas', 'Estado', ''].map(h => (
-                  <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 500 }}>{h}</th>
+                  <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtrados.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-3)' }}>Sin préstamos</td></tr>
-              )}
+              {filtrados.length === 0 && <tr><td colSpan={8} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-3)' }}>Sin préstamos</td></tr>}
               {filtrados.map(p => {
                 const pendiente = p.monto_total - p.monto_pagado
                 const pct = p.monto_total > 0 ? Math.round((p.monto_pagado / p.monto_total) * 100) : 0
                 return (
                   <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}
-                    onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-3)')}
+                    onMouseOver={e => (e.currentTarget.style.background = 'var(--bg-2)')}
                     onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td style={{ padding: '0.875rem 1rem' }}>
-                      <div style={{ fontWeight: 500, fontSize: 13 }}>{p.clientes.nombre} {p.clientes.apellido}</div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{p.clientes.nombre} {p.clientes.apellido}</div>
                       {p.clientes.telefono && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.clientes.telefono}</div>}
                     </td>
                     <td style={{ padding: '0.875rem 1rem', fontSize: 13, color: 'var(--text-2)' }}>
                       <div>{p.descripcion}</div>
-                      {p.notas && (
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{p.notas}</div>
-                      )}
+                      {p.notas && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{p.notas}</div>}
                     </td>
                     <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-2)' }}>{fmt(p.monto_cuota)}</td>
-                    <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--green)' }}>{fmt(p.monto_pagado)}</td>
-                    <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: pendiente > 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(pendiente)}</td>
-                    <td style={{ padding: '0.875rem 1rem', fontSize: 12, color: 'var(--text-2)', textAlign: 'center' }}>
-                      {p.cuotas_pagadas}/{p.cantidad_cuotas}
-                      <div style={{ marginTop: 4, height: 3, background: 'var(--bg-4)', borderRadius: 2 }}>
+                    <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>{fmt(p.monto_pagado)}</td>
+                    <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: pendiente > 0 ? 'var(--red)' : 'var(--accent)', fontWeight: 700 }}>{fmt(pendiente)}</td>
+                    <td style={{ padding: '0.875rem 1rem', textAlign: 'center' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>{p.cuotas_pagadas}/{p.cantidad_cuotas}</div>
+                      <div style={{ height: 4, background: 'var(--bg-3)', borderRadius: 2, width: 60 }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 2 }} />
                       </div>
                     </td>
                     <td style={{ padding: '0.875rem 1rem' }}>
-                      <span style={{ padding: '0.2rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 600, background: p.estado === 'pagado' ? 'var(--green-dim)' : p.estado === 'activo' ? 'var(--accent-dim)' : 'var(--red-dim)', color: p.estado === 'pagado' ? 'var(--green)' : p.estado === 'activo' ? 'var(--accent-light)' : 'var(--red)' }}>
+                      <span style={{ padding: '0.25rem 0.625rem', borderRadius: 20, fontSize: 11, fontWeight: 700, background: p.estado === 'pagado' ? 'var(--accent-dim)' : p.estado === 'activo' ? 'var(--accent-dim)' : 'rgba(186,26,26,0.08)', color: p.estado === 'pagado' ? 'var(--accent)' : p.estado === 'activo' ? 'var(--accent)' : 'var(--red)' }}>
                         {p.estado}
                       </span>
                     </td>
                     <td style={{ padding: '0.875rem 1rem' }}>
                       {p.estado === 'activo' && (
-                        <a href={`/admin/pagos?prestamo=${p.id}&cliente=${p.cliente_id}`} style={{ padding: '0.3rem 0.75rem', background: 'var(--green-dim)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 'var(--radius-sm)', color: 'var(--green)', textDecoration: 'none', fontSize: 12 }}>Pagar</a>
+                        <a href={`/admin/pagos?prestamo=${p.id}&cliente=${p.cliente_id}`} style={{ padding: '0.3rem 0.75rem', background: 'var(--accent-dim)', border: '1px solid rgba(0,107,50,0.2)', borderRadius: 'var(--radius-sm)', color: 'var(--accent)', textDecoration: 'none', fontSize: 12, fontWeight: 700 }}>Pagar</a>
                       )}
                     </td>
                   </tr>
@@ -210,6 +271,15 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
           </table>
         </div>
       </div>
+
+      <style>{`
+        .prestamos-cards { display: flex; flex-direction: column; gap: 0.875rem; }
+        .prestamos-tabla { display: none; }
+        @media (min-width: 900px) {
+          .prestamos-cards { display: none; }
+          .prestamos-tabla { display: block; }
+        }
+      `}</style>
 
       {/* Modal nuevo préstamo */}
       {modal && (

@@ -17,19 +17,27 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (perfil?.rol !== 'admin') redirect('/cliente')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <AdminSidebar perfil={perfil} />
-      <main style={{
-        flex: 1,
-        marginLeft: 0,
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        overflow: 'auto',
-      }}>
-        <div style={{ padding: '1.5rem', maxWidth: 1200, margin: '0 auto' }}>
+
+      {/* Wrapper que empuja el contenido */}
+      <div style={{ marginLeft: 0, paddingTop: 56 }} className="admin-wrapper">
+        <main style={{ padding: '1.5rem', paddingBottom: 90 }}>
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
+
+      <style>{`
+        @media (min-width: 900px) {
+          .admin-wrapper {
+            margin-left: 240px !important;
+            padding-top: 0 !important;
+          }
+          .admin-wrapper main {
+            padding-bottom: 1.5rem !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

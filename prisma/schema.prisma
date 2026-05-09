@@ -19,21 +19,23 @@ model Perfil {
 }
 
 model Cliente {
-  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String?    @map("user_id")
-  nombre    String
-  apellido  String
-  telefono  String?
-  email     String?
-  dni       String?
-  direccion String?
-  notas     String?
-  fotoDniUrl String?   @map("foto_dni_url")   // ← agregá esta línea
-  activo    Boolean    @default(true)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-  prestamos Prestamo[]
-  pagos     Pago[]
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?    @map("user_id")
+  nombre     String
+  apellido   String
+  telefono   String?
+  email      String?
+  dni        String?
+  direccion  String?
+  notas      String?
+  fotoDniUrl String?    @map("foto_dni_url")
+  activo     Boolean    @default(true)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  prestamos  Prestamo[]
+  pagos      Pago[]
+  puntajes   Puntaje[]
+  historialPuntos HistorialPuntos[]
 
   @@map("clientes")
 }
@@ -55,22 +57,70 @@ model Prestamo {
   updatedAt        DateTime  @updatedAt @map("updated_at")
   cliente          Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   pagos            Pago[]
+  puntajes         Puntaje[]
+  historialPuntos  HistorialPuntos[]
 
   @@map("prestamos")
 }
 
 model Pago {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  prestamoId  String   @map("prestamo_id") @db.Uuid
-  clienteId   String   @map("cliente_id") @db.Uuid
-  monto       Decimal  @db.Decimal(12, 2)
-  fechaPago   DateTime @map("fecha_pago") @db.Date
-  numeroCuota Int?     @map("numero_cuota")
-  metodoPago  String   @default("efectivo") @map("metodo_pago")
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  prestamoId  String    @map("prestamo_id") @db.Uuid
+  clienteId   String    @map("cliente_id") @db.Uuid
+  monto       Decimal   @db.Decimal(12, 2)
+  fechaPago   DateTime  @map("fecha_pago") @db.Date
+  numeroCuota Int?      @map("numero_cuota")
+  metodoPago  String    @default("efectivo") @map("metodo_pago")
   notas       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  prestamo    Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
-  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  prestamo    Prestamo  @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
+  cliente     Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  historialPuntos HistorialPuntos[]
 
   @@map("pagos")
+}
+
+model ConfigPuntos {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pagoPuntual   Int      @default(10)  @map("pago_puntual")
+  pagoAdelantado Int     @default(15)  @map("pago_adelantado")
+  mora13        Int      @default(-20) @map("mora_1_3")
+  mora410       Int      @default(-50) @map("mora_4_10")
+  moraMas10     Int      @default(-100) @map("mora_mas_10")
+  puntosBase    Int      @default(100) @map("puntos_base")
+  updatedAt     DateTime @default(now()) @map("updated_at")
+
+  @@map("config_puntos")
+}
+
+model Puntaje {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clienteId    String   @map("cliente_id") @db.Uuid
+  prestamoId   String?  @map("prestamo_id") @db.Uuid
+  puntosActual Int      @map("puntos_actual") @default(100)
+  puntosBase   Int      @map("puntos_base") @default(100)
+  estado       String   @default("cumplidor")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  prestamo     Prestamo? @relation(fields: [prestamoId], references: [id], onDelete: SetNull)
+
+  @@unique([clienteId, prestamoId])
+  @@map("puntajes")
+}
+
+model HistorialPuntos {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clienteId   String   @map("cliente_id") @db.Uuid
+  prestamoId  String?  @map("prestamo_id") @db.Uuid
+  pagoId      String?  @map("pago_id") @db.Uuid
+  tipo        String
+  puntos      Int
+  descripcion String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  prestamo    Prestamo? @relation(fields: [prestamoId], references: [id], onDelete: SetNull)
+  pago        Pago?    @relation(fields: [pagoId], references: [id], onDelete: SetNull)
+
+  @@map("historial_puntos")
 }
