@@ -28,6 +28,7 @@ model Cliente {
   dni       String?
   direccion String?
   notas     String?
+  fotoDniUrl String?   @map("foto_dni_url")   // ← agregá esta línea
   activo    Boolean    @default(true)
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")

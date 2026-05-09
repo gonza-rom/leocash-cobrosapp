@@ -23,6 +23,15 @@ interface Prestamo {
   clientes: { nombre: string; apellido: string; telefono: string }
 }
 
+const FRECUENCIAS = [
+  { value: 'diario',     label: 'Diario' },
+  { value: 'semanal',    label: 'Semanal' },
+  { value: 'quincenal',  label: 'Quincenal' },
+  { value: 'mensual',    label: 'Mensual' },
+  { value: 'dia_especifico', label: 'Día específico del mes' },
+  { value: 'manual',     label: 'Ingreso manual' },
+]
+
 export default function PrestamosClient({ prestamos: inicial }: { prestamos: Prestamo[] }) {
   const [prestamos, setPrestamos] = useState(inicial)
   const [modal, setModal] = useState(false)
@@ -32,12 +41,18 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
   const [filtro, setFiltro] = useState<'todos' | 'activo' | 'pagado'>('todos')
   const [form, setForm] = useState({
     cliente_id: '', descripcion: '', monto_total: '',
-    cantidad_cuotas: '1', fecha_inicio: new Date().toISOString().split('T')[0],
+    cantidad_cuotas: '1', porcentaje_interes: '0',
+    frecuencia_pago: 'mensual', dia_especifico: '',
+    fecha_inicio: new Date().toISOString().split('T')[0],
     fecha_vencimiento: '', notas: '',
   })
 
-  const montoCuota = form.monto_total && form.cantidad_cuotas
-    ? Number(form.monto_total) / Number(form.cantidad_cuotas)
+  // Calcular monto con interés
+  const montoBase = Number(form.monto_total) || 0
+  const interes = Number(form.porcentaje_interes) || 0
+  const montoConInteres = montoBase + (montoBase * interes / 100)
+  const montoCuota = form.cantidad_cuotas && montoConInteres
+    ? montoConInteres / Number(form.cantidad_cuotas)
     : 0
 
   useEffect(() => {
@@ -52,19 +67,31 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
       setError('Cliente, descripción y monto son obligatorios')
       return
     }
+    if (form.frecuencia_pago === 'dia_especifico' && !form.dia_especifico) {
+      setError('Ingresá el día del mes para el cobro')
+      return
+    }
     setSaving(true)
     const supabase = createClient()
+
+    const notas_completas = [
+      form.notas,
+      `Frecuencia: ${FRECUENCIAS.find(f => f.value === form.frecuencia_pago)?.label}`,
+      form.frecuencia_pago === 'dia_especifico' ? `Día de cobro: ${form.dia_especifico}` : '',
+      interes > 0 ? `Interés: ${interes}%` : '',
+    ].filter(Boolean).join(' | ')
+
     const { data, error: e } = await supabase
       .from('prestamos')
       .insert({
         cliente_id: form.cliente_id,
         descripcion: form.descripcion,
-        monto_total: Number(form.monto_total),
+        monto_total: montoConInteres,
         cantidad_cuotas: Number(form.cantidad_cuotas),
         monto_cuota: montoCuota,
         fecha_inicio: form.fecha_inicio,
         fecha_vencimiento: form.fecha_vencimiento || null,
-        notas: form.notas,
+        notas: notas_completas,
         estado: 'activo',
       })
       .select('*, clientes(nombre, apellido, telefono)')
@@ -92,7 +119,7 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
 
     setSaving(false)
     setModal(false)
-    setForm({ cliente_id: '', descripcion: '', monto_total: '', cantidad_cuotas: '1', fecha_inicio: new Date().toISOString().split('T')[0], fecha_vencimiento: '', notas: '' })
+    setForm({ cliente_id: '', descripcion: '', monto_total: '', cantidad_cuotas: '1', porcentaje_interes: '0', frecuencia_pago: 'mensual', dia_especifico: '', fecha_inicio: new Date().toISOString().split('T')[0], fecha_vencimiento: '', notas: '' })
   }
 
   const filtrados = prestamos.filter(p => filtro === 'todos' || p.estado === filtro)
@@ -103,6 +130,8 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
     borderRadius: 'var(--radius-sm)', color: 'var(--text)',
     fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none',
   } as const
+
+  const labelStyle = { display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 } as const
 
   return (
     <div style={{ animation: 'fadeUp 0.4s ease' }}>
@@ -149,7 +178,12 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
                       <div style={{ fontWeight: 500, fontSize: 13 }}>{p.clientes.nombre} {p.clientes.apellido}</div>
                       {p.clientes.telefono && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.clientes.telefono}</div>}
                     </td>
-                    <td style={{ padding: '0.875rem 1rem', fontSize: 13, color: 'var(--text-2)' }}>{p.descripcion}</td>
+                    <td style={{ padding: '0.875rem 1rem', fontSize: 13, color: 'var(--text-2)' }}>
+                      <div>{p.descripcion}</div>
+                      {p.notas && (
+                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{p.notas}</div>
+                      )}
+                    </td>
                     <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-2)' }}>{fmt(p.monto_cuota)}</td>
                     <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--green)' }}>{fmt(p.monto_pagado)}</td>
                     <td style={{ padding: '0.875rem 1rem', fontFamily: 'var(--font-mono)', fontSize: 13, color: pendiente > 0 ? 'var(--red)' : 'var(--green)' }}>{fmt(pendiente)}</td>
@@ -181,53 +215,121 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem', animation: 'fadeIn 0.2s ease' }}
           onClick={e => { if (e.target === e.currentTarget) setModal(false) }}>
-          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2rem', width: '100%', maxWidth: 520, maxHeight: '90vh', overflow: 'auto', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2rem', width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto', boxShadow: 'var(--shadow)' }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, marginBottom: '1.5rem' }}>Nuevo préstamo</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+
+              {/* Cliente */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Cliente *</label>
+                <label style={labelStyle}>Cliente *</label>
                 <select value={form.cliente_id} onChange={e => setForm(p => ({ ...p, cliente_id: e.target.value }))} style={inputStyle}>
                   <option value="">Seleccionar cliente...</option>
                   {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido}</option>)}
                 </select>
               </div>
+
+              {/* Descripción */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Descripción *</label>
+                <label style={labelStyle}>Descripción *</label>
                 <input value={form.descripcion} onChange={e => setForm(p => ({ ...p, descripcion: e.target.value }))} placeholder="Ej: Préstamo para electrodoméstico" style={inputStyle} />
               </div>
+
+              {/* Monto + Interés */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Monto total *</label>
+                  <label style={labelStyle}>Monto capital *</label>
                   <input type="number" value={form.monto_total} onChange={e => setForm(p => ({ ...p, monto_total: e.target.value }))} placeholder="0" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Cantidad de cuotas</label>
-                  <input type="number" min="1" value={form.cantidad_cuotas} onChange={e => setForm(p => ({ ...p, cantidad_cuotas: e.target.value }))} style={inputStyle} />
+                  <label style={labelStyle}>Interés (%)</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="number" min="0" max="100" step="0.5"
+                      value={form.porcentaje_interes}
+                      onChange={e => setForm(p => ({ ...p, porcentaje_interes: e.target.value }))}
+                      placeholder="0"
+                      style={{ ...inputStyle, paddingRight: '2rem' }}
+                    />
+                    <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 13 }}>%</span>
+                  </div>
                 </div>
               </div>
-              {montoCuota > 0 && (
-                <div style={{ padding: '0.75rem', background: 'var(--accent-dim)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                  <span style={{ fontSize: 13, color: 'var(--accent-light)' }}>
-                    Cuota: <strong style={{ fontFamily: 'var(--font-mono)' }}>{fmt(montoCuota)}</strong>
-                  </span>
+
+              {/* Preview monto con interés */}
+              {montoBase > 0 && (
+                <div style={{ padding: '0.875rem', background: 'var(--bg-3)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Capital</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)' }}>{fmt(montoBase)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Interés</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--amber)' }}>+{fmt(montoBase * interes / 100)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Total</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--accent-light)', fontWeight: 600 }}>{fmt(montoConInteres)}</div>
+                  </div>
                 </div>
               )}
+
+              {/* Cuotas */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Fecha inicio</label>
+                  <label style={labelStyle}>Cantidad de cuotas</label>
+                  <input type="number" min="1" value={form.cantidad_cuotas} onChange={e => setForm(p => ({ ...p, cantidad_cuotas: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Valor por cuota</label>
+                  <div style={{ padding: '0.625rem 0.875rem', background: 'var(--bg-4)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: 14, color: montoCuota > 0 ? 'var(--accent-light)' : 'var(--text-3)' }}>
+                    {montoCuota > 0 ? fmt(montoCuota) : '—'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Frecuencia de pago */}
+              <div>
+                <label style={labelStyle}>Frecuencia de pago</label>
+                <select value={form.frecuencia_pago} onChange={e => setForm(p => ({ ...p, frecuencia_pago: e.target.value, dia_especifico: '' }))} style={inputStyle}>
+                  {FRECUENCIAS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+              </div>
+
+              {/* Día específico */}
+              {form.frecuencia_pago === 'dia_especifico' && (
+                <div>
+                  <label style={labelStyle}>Día del mes para el cobro (1-31) *</label>
+                  <input
+                    type="number" min="1" max="31"
+                    value={form.dia_especifico}
+                    onChange={e => setForm(p => ({ ...p, dia_especifico: e.target.value }))}
+                    placeholder="Ej: 15"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+
+              {/* Fechas */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+                <div>
+                  <label style={labelStyle}>Fecha inicio</label>
                   <input type="date" value={form.fecha_inicio} onChange={e => setForm(p => ({ ...p, fecha_inicio: e.target.value }))} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Vencimiento (opcional)</label>
+                  <label style={labelStyle}>Vencimiento (opcional)</label>
                   <input type="date" value={form.fecha_vencimiento} onChange={e => setForm(p => ({ ...p, fecha_vencimiento: e.target.value }))} style={inputStyle} />
                 </div>
               </div>
+
+              {/* Notas */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5 }}>Notas</label>
+                <label style={labelStyle}>Notas</label>
                 <textarea value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
             </div>
+
             {error && <div style={{ marginTop: 12, padding: '0.5rem 0.875rem', background: 'var(--red-dim)', borderRadius: 'var(--radius-sm)', color: 'var(--red)', fontSize: 13 }}>{error}</div>}
+
             <div style={{ display: 'flex', gap: 8, marginTop: '1.5rem', justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(false)} style={{ padding: '0.6rem 1.25rem', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 14 }}>Cancelar</button>
               <button onClick={guardar} disabled={saving} style={{ padding: '0.6rem 1.5rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, opacity: saving ? 0.7 : 1 }}>

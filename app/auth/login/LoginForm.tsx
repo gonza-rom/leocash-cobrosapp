@@ -69,7 +69,7 @@ console.log('Error completo:', JSON.stringify(authError))
             <span style={{
               fontFamily: 'var(--font-display)', fontSize: 26,
               color: 'var(--text)', letterSpacing: '-0.02em',
-            }}>DevHub Cobros</span>
+            }}>Leo Cash</span>
           </div>
           <p style={{ color: 'var(--text-2)', fontSize: 14 }}>
             Ingresá con tu cuenta para continuar
