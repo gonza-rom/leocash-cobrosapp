@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'DevHub Cobros',
+  title: 'Leo Cash',
   description: 'Sistema de gestión de cobros y préstamos',
 }
 
