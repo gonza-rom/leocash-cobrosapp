@@ -55,25 +55,92 @@ export default function PagosClient({ pagos: inicial }: { pagos: any[] }) {
     }
     setSaving(true)
     const supabase = createClient()
+
+    // 1. Registrar el pago
     const { data, error: e } = await supabase
       .from('pagos')
       .insert({
-        cliente_id: form.cliente_id,
-        prestamo_id: form.prestamo_id,
-        monto: Number(form.monto),
-        fecha_pago: form.fecha_pago,
+        cliente_id:   form.cliente_id,
+        prestamo_id:  form.prestamo_id,
+        monto:        Number(form.monto),
+        fecha_pago:   form.fecha_pago,
         numero_cuota: form.numero_cuota ? Number(form.numero_cuota) : null,
-        metodo_pago: form.metodo_pago,
-        notas: form.notas,
+        metodo_pago:  form.metodo_pago,
+        notas:        form.notas,
       })
-      .select('*, clientes(nombre, apellido), prestamos(descripcion, monto_cuota)')
+      .select('*, clientes(nombre, apellido), prestamos(descripcion, monto_cuota, fecha_vencimiento)')
       .single()
 
     if (e) { setError(e.message); setSaving(false); return }
-    setPagos(prev => [data, ...prev])
+
+    // 2. Calcular tipo de pago para puntos
+    const fechaPago       = new Date(form.fecha_pago)
+    const fechaVencimiento = data.prestamos?.fecha_vencimiento
+      ? new Date(data.prestamos.fecha_vencimiento)
+      : null
+
+    let tipoPunto = 'pago_puntual'
+
+    if (fechaVencimiento) {
+      const hoy = new Date()
+      hoy.setHours(0, 0, 0, 0)
+      fechaPago.setHours(0, 0, 0, 0)
+      fechaVencimiento.setHours(0, 0, 0, 0)
+
+      const diasDiferencia = Math.floor(
+        (fechaPago.getTime() - fechaVencimiento.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      if (diasDiferencia < 0) {
+        // Pagó antes del vencimiento
+        tipoPunto = 'pago_adelantado'
+      } else if (diasDiferencia === 0) {
+        // Pagó en fecha exacta
+        tipoPunto = 'pago_puntual'
+      } else if (diasDiferencia <= 3) {
+        tipoPunto = 'mora_1_3'
+      } else if (diasDiferencia <= 10) {
+        tipoPunto = 'mora_4_10'
+      } else {
+        tipoPunto = 'mora_mas_10'
+      }
+    }
+
+    // 3. Registrar puntos
+    await fetch('/api/admin/registrar-puntos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clienteId:  form.cliente_id,
+        prestamoId: form.prestamo_id,
+        pagoId:     data.id,
+        tipo:       tipoPunto,
+      }),
+    })
+
+    // 4. Actualizar lista
+    setPagos(prev => [{
+      id:          data.id,
+      prestamo_id: data.prestamo_id,
+      cliente_id:  data.cliente_id,
+      monto:       Number(data.monto),
+      fecha_pago:  data.fecha_pago,
+      numero_cuota: data.numero_cuota,
+      metodo_pago: data.metodo_pago,
+      notas:       data.notas,
+      created_at:  data.created_at,
+      clientes:    data.clientes,
+      prestamos:   data.prestamos,
+    }, ...prev])
+
     setSaving(false)
     setModal(false)
-    setForm({ cliente_id: '', prestamo_id: '', monto: '', numero_cuota: '', metodo_pago: 'efectivo', fecha_pago: new Date().toISOString().split('T')[0], notas: '' })
+    setForm({
+      cliente_id: '', prestamo_id: '', monto: '', numero_cuota: '',
+      metodo_pago: 'efectivo',
+      fecha_pago: new Date().toISOString().split('T')[0],
+      notas: '',
+    })
   }
 
   const inputStyle = { width: '100%', padding: '0.625rem 0.875rem', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text)', fontSize: 14, fontFamily: 'var(--font-body)', outline: 'none' } as const

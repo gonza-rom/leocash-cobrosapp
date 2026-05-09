@@ -327,18 +327,7 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
           + Nuevo
         </button>
       </div>
-
-      {/* Filtros */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por nombre o teléfono..." style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
-        <div style={{ display: 'flex', gap: 4 }}>
-          {([['todos', 'Todos'], ['al_dia', 'Al día'], ['con_deuda', 'Con deuda']] as const).map(([v, l]) => (
-            <button key={v} onClick={() => setFiltro(v)} style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${filtro === v ? 'var(--accent)' : 'var(--border)'}`, background: filtro === v ? 'var(--accent-dim)' : 'var(--bg-2)', color: filtro === v ? 'var(--accent-light)' : 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)' }}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabla */}
+      
       {/* Lista de clientes — cards en mobile, tabla en PC */}
       <div className="clientes-lista">
 
