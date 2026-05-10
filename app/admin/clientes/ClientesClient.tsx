@@ -136,7 +136,7 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
       return
     }
     if (crearAccesoInline && (!acceso.email || !acceso.password)) {
-      setError('Si vas a crear acceso, email y contraseña son obligatorios')
+      setError('Si vas a crear acceso, DNI y contraseña son obligatorios')
       return
     }
     if (crearAccesoInline && acceso.password.length < 6) {
@@ -151,14 +151,14 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
       const { data, error: e } = await supabase
         .from('clientes')
         .insert({
-          nombre: clienteActual.nombre,
-          apellido: clienteActual.apellido,
-          telefono: clienteActual.telefono,
-          email: crearAccesoInline ? acceso.email : clienteActual.email,
-          dni: clienteActual.dni,
+          nombre:    clienteActual.nombre,
+          apellido:  clienteActual.apellido,
+          telefono:  clienteActual.telefono,
+          email:     clienteActual.email,
+          dni:       clienteActual.dni,
           direccion: clienteActual.direccion,
-          notas: clienteActual.notas,
-          activo: true,
+          notas:     clienteActual.notas,
+          activo:    true,
         })
         .select('*')
         .single()
@@ -179,7 +179,12 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
         const res = await fetch('/api/admin/crear-acceso', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clienteId: data.id, email: acceso.email, password: acceso.password, nombre: data.nombre }),
+          body: JSON.stringify({
+            clienteId: data.id,
+            dni:       acceso.email,   // acceso.email guarda el DNI
+            password:  acceso.password,
+            nombre:    data.nombre,
+          }),
         })
         const json = await res.json()
         if (!res.ok) { setError(json.error ?? 'Cliente creado pero error al crear acceso'); setSaving(false); return }
@@ -205,15 +210,15 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
       const { error: e } = await supabase
         .from('clientes')
         .update({
-          nombre: clienteActual.nombre,
-          apellido: clienteActual.apellido,
-          telefono: clienteActual.telefono,
-          email: clienteActual.email,
-          dni: clienteActual.dni,
-          direccion: clienteActual.direccion,
-          notas: clienteActual.notas,
+          nombre:      clienteActual.nombre,
+          apellido:    clienteActual.apellido,
+          telefono:    clienteActual.telefono,
+          email:       clienteActual.email,
+          dni:         clienteActual.dni,
+          direccion:   clienteActual.direccion,
+          notas:       clienteActual.notas,
           foto_dni_url: fotoDniPath,
-          updated_at: new Date().toISOString(),
+          updated_at:  new Date().toISOString(),
         })
         .eq('id', clienteActual!.id!)
 
@@ -237,7 +242,7 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
     const res = await fetch('/api/admin/crear-acceso', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clienteId: clienteActual!.id, email: acceso.email, password: acceso.password, nombre: clienteActual!.nombre }),
+      body: JSON.stringify({ clienteId: clienteActual!.id, dni: acceso.email, password: acceso.password, nombre: clienteActual!.nombre }),
     })
     const json = await res.json()
     if (!res.ok) { setError(json.error ?? 'Error al crear acceso'); setSaving(false); return }
@@ -571,20 +576,26 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
                   </button>
                 </div>
                 {crearAccesoInline && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
-                    <div>
-                      <label style={labelStyle}>Email *</label>
-                      <input type="email" value={acceso.email} onChange={e => setAcceso(p => ({ ...p, email: e.target.value }))} placeholder="email@cliente.com" style={inputStyle} />
-                    </div>
-                    <div style={{ position: 'relative' }}>
-                      <label style={labelStyle}>Contraseña *</label>
-                      <input type={verPassword.nuevo ? 'text' : 'password'} value={acceso.password} onChange={e => setAcceso(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" style={{ ...inputStyle, paddingRight: '2.5rem' }} />
-                      <button type="button" onClick={() => setVerPassword(p => ({ ...p, nuevo: !p.nuevo }))} style={{ position: 'absolute', right: 10, top: 30, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 }}>
-                        {verPassword.nuevo ? '🙈' : '👁'}
-                      </button>
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+                  <div>
+                    <label style={labelStyle}>DNI *</label>
+                    <input
+                      type="text"
+                      value={acceso.email}
+                      onChange={e => setAcceso(p => ({ ...p, email: e.target.value.trim() }))}
+                      placeholder="Ej: 12345678"
+                      style={inputStyle}
+                    />
                   </div>
-                )}
+                  <div style={{ position: 'relative' }}>
+                    <label style={labelStyle}>Contraseña *</label>
+                    <input type={verPassword.nuevo ? 'text' : 'password'} value={acceso.password} onChange={e => setAcceso(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" style={{ ...inputStyle, paddingRight: '2.5rem' }} />
+                    <button type="button" onClick={() => setVerPassword(p => ({ ...p, nuevo: !p.nuevo }))} style={{ position: 'absolute', right: 10, top: 30, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 }}>
+                      {verPassword.nuevo ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
             )}
 
@@ -663,8 +674,17 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
             {!success && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
                 <div>
-                  <label style={labelStyle}>Email *</label>
-                  <input type="email" value={acceso.email} onChange={e => setAcceso(p => ({ ...p, email: e.target.value }))} placeholder="email@cliente.com" style={inputStyle} />
+                  <label style={labelStyle}>DNI del cliente *</label>
+                  <input
+                    type="text"
+                    value={acceso.email}
+                    onChange={e => setAcceso(p => ({ ...p, email: e.target.value.trim() }))}
+                    placeholder="Ej: 12345678"
+                    style={inputStyle}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                    El cliente ingresará con este DNI como usuario
+                  </div>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <label style={labelStyle}>Contraseña *</label>
