@@ -1,17 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { getDashboardData } from '@/lib/queries'
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 
+
 export default async function AdminDashboard() {
-  const [totalClientes, prestamosData, pagosHoy] = await Promise.all([
-    prisma.cliente.count({ where: { activo: true } }),
-    prisma.prestamo.findMany({ select: { montoTotal: true, montoPagado: true, estado: true } }),
-    prisma.pago.findMany({
-      where: { fechaPago: { gte: new Date(new Date().setHours(0,0,0,0)) } },
-      select: { monto: true },
-    }),
-  ])
+  const { totalClientes, prestamosData, ultimosPagos } = await getDashboardData()
+
+  // pagosHoy no está en cache porque cambia constantemente
+  const pagosHoy = await prisma.pago.findMany({
+    where: { fechaPago: { gte: new Date(new Date().setHours(0,0,0,0)) } },
+    select: { monto: true },
+  })
 
   const totalPrestado  = prestamosData.reduce((s, p) => s + Number(p.montoTotal), 0)
   const totalCobrado   = prestamosData.reduce((s, p) => s + Number(p.montoPagado), 0)
@@ -20,22 +21,14 @@ export default async function AdminDashboard() {
   const prestActivos   = prestamosData.filter(p => p.estado === 'activo').length
   const pct = totalPrestado > 0 ? Math.round((totalCobrado / totalPrestado) * 100) : 0
 
-  const ultimosPagos = await prisma.pago.findMany({
-    orderBy: { createdAt: 'desc' }, take: 5,
-    include: {
-      cliente: { select: { nombre: true, apellido: true } },
-      prestamo: { select: { descripcion: true } },
-    },
-  })
-
-  const prestamosActivos = await prisma.prestamo.findMany({
-    where: { estado: 'activo' },
-    include: { cliente: { select: { id: true, nombre: true, apellido: true } } },
-  })
   const deudaPorCliente: Record<string, { nombre: string; deuda: number; clienteId: string }> = {}
-  prestamosActivos.forEach(p => {
+  prestamosData.filter(p => p.estado === 'activo').forEach(p => {
     const pendiente = Number(p.montoTotal) - Number(p.montoPagado)
-    if (!deudaPorCliente[p.clienteId]) deudaPorCliente[p.clienteId] = { nombre: `${p.cliente.nombre} ${p.cliente.apellido}`, deuda: 0, clienteId: p.clienteId }
+    if (!deudaPorCliente[p.clienteId]) deudaPorCliente[p.clienteId] = {
+      nombre: `${p.cliente.nombre} ${p.cliente.apellido}`,
+      deuda: 0,
+      clienteId: p.clienteId,
+    }
     deudaPorCliente[p.clienteId].deuda += pendiente
   })
   const topDeudores = Object.values(deudaPorCliente).sort((a, b) => b.deuda - a.deuda).slice(0, 5)
