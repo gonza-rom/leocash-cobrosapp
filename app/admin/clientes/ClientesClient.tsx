@@ -4,6 +4,14 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import type { Cliente } from '@/types'
 
+async function revalidar(tags: string[]) {
+  await fetch('/api/admin/revalidar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags }),
+  })
+}
+
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 
 interface ClienteConDeuda extends Cliente {
@@ -189,8 +197,10 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
         const json = await res.json()
         if (!res.ok) { setError(json.error ?? 'Cliente creado pero error al crear acceso'); setSaving(false); return }
         setClientes(prev => [{ ...data, foto_dni_url: fotoDniPath ?? undefined, user_id: json.userId, deuda_total: 0, prestamos_activos: 0 }, ...prev])
+        await revalidar(['clientes-list', 'dashboard-data'])
       } else {
         setClientes(prev => [{ ...data, foto_dni_url: fotoDniPath ?? undefined, deuda_total: 0, prestamos_activos: 0 }, ...prev])
+        await revalidar(['clientes-list', 'dashboard-data'])
       }
 
     } else {
@@ -228,6 +238,7 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
           ? { ...c, ...clienteActual, foto_dni_url: fotoDniPath ?? undefined }
           : c
       ))
+      await revalidar(['clientes-list', 'dashboard-data'])
     }
 
     setSaving(false)
@@ -279,6 +290,7 @@ export default function ClientesClient({ clientes: inicial }: { clientes: Client
     }
     await supabase.from('clientes').update({ activo: false }).eq('id', id)
     setClientes(prev => prev.filter(c => c.id !== id))
+    await revalidar(['clientes-list', 'dashboard-data', 'prestamos-list'])
   }
 
   const inputStyle = {

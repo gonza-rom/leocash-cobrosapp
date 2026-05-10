@@ -59,6 +59,7 @@ model Prestamo {
   pagos            Pago[]
   puntajes         Puntaje[]
   historialPuntos  HistorialPuntos[]
+  capitalOriginal  Decimal   @default(0) @map("capital_original") @db.Decimal(12, 2)
 
   @@map("prestamos")
 }

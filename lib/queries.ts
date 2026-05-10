@@ -7,10 +7,11 @@ export const getDashboardData = unstable_cache(
       prisma.cliente.count({ where: { activo: true } }),
       prisma.prestamo.findMany({
         select: {
-          montoTotal: true,
-          montoPagado: true,
-          estado: true,
-          clienteId: true,
+          montoTotal:      true,
+          montoPagado:     true,
+          capitalOriginal: true,
+          estado:          true,
+          clienteId:       true,
           cliente: { select: { nombre: true, apellido: true } },
         },
       }),
@@ -18,7 +19,7 @@ export const getDashboardData = unstable_cache(
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: {
-          cliente: { select: { nombre: true, apellido: true } },
+          cliente:  { select: { nombre: true, apellido: true } },
           prestamo: { select: { descripcion: true } },
         },
       }),
@@ -27,11 +28,12 @@ export const getDashboardData = unstable_cache(
     return {
       totalClientes,
       prestamosData: prestamosData.map(p => ({
-        montoTotal:  Number(p.montoTotal),
-        montoPagado: Number(p.montoPagado),
-        estado:      p.estado,
-        clienteId:   p.clienteId,
-        cliente:     p.cliente,
+        montoTotal:      Number(p.montoTotal),
+        montoPagado:     Number(p.montoPagado),
+        capitalOriginal: Number(p.capitalOriginal ?? p.montoTotal),
+        estado:          p.estado,
+        clienteId:       p.clienteId,
+        cliente:         p.cliente,
       })),
       ultimosPagos: ultimosPagos.map(p => ({
         id:        p.id,
@@ -43,7 +45,7 @@ export const getDashboardData = unstable_cache(
     }
   },
   ['dashboard-data'],
-  { revalidate: 60 }
+  { revalidate: 60, tags: ['dashboard-data'] }
 )
 
 export const getClientes = unstable_cache(
@@ -58,22 +60,21 @@ export const getClientes = unstable_cache(
       },
     })
 
-    // Convertir todo a tipos serializables
     return clientes.map(c => ({
-      id:        c.id,
-      userId:    c.userId,
-      nombre:    c.nombre,
-      apellido:  c.apellido,
-      telefono:  c.telefono,
-      email:     c.email,
-      dni:       c.dni,
-      direccion: c.direccion,
-      notas:     c.notas,
+      id:         c.id,
+      userId:     c.userId,
+      nombre:     c.nombre,
+      apellido:   c.apellido,
+      telefono:   c.telefono,
+      email:      c.email,
+      dni:        c.dni,
+      direccion:  c.direccion,
+      notas:      c.notas,
       fotoDniUrl: c.fotoDniUrl,
-      activo:    c.activo,
-      createdAt: c.createdAt.toISOString(),
-      updatedAt: c.updatedAt.toISOString(),
-      prestamos: c.prestamos.map(p => ({
+      activo:     c.activo,
+      createdAt:  c.createdAt.toISOString(),
+      updatedAt:  c.updatedAt.toISOString(),
+      prestamos:  c.prestamos.map(p => ({
         montoTotal:  Number(p.montoTotal),
         montoPagado: Number(p.montoPagado),
         estado:      p.estado,
@@ -81,7 +82,7 @@ export const getClientes = unstable_cache(
     }))
   },
   ['clientes-list'],
-  { revalidate: 30 }
+  { revalidate: 30, tags: ['clientes-list'] }
 )
 
 export const getPrestamos = unstable_cache(
@@ -94,20 +95,20 @@ export const getPrestamos = unstable_cache(
     })
 
     return prestamos.map(p => ({
-      id:              p.id,
-      clienteId:       p.clienteId,
-      descripcion:     p.descripcion,
-      montoTotal:      Number(p.montoTotal),
-      montoPagado:     Number(p.montoPagado),
-      montoCuota:      Number(p.montoCuota),
-      cantidadCuotas:  p.cantidadCuotas,
-      cuotasPagadas:   p.cuotasPagadas,
-      fechaInicio:     p.fechaInicio.toISOString(),
+      id:               p.id,
+      clienteId:        p.clienteId,
+      descripcion:      p.descripcion,
+      montoTotal:       Number(p.montoTotal),
+      montoPagado:      Number(p.montoPagado),
+      montoCuota:       Number(p.montoCuota),
+      cantidadCuotas:   p.cantidadCuotas,
+      cuotasPagadas:    p.cuotasPagadas,
+      fechaInicio:      p.fechaInicio.toISOString(),
       fechaVencimiento: p.fechaVencimiento?.toISOString() ?? null,
-      estado:          p.estado,
-      notas:           p.notas ?? '',
-      createdAt:       p.createdAt.toISOString(),
-      updatedAt:       p.updatedAt.toISOString(),
+      estado:           p.estado,
+      notas:            p.notas ?? '',
+      createdAt:        p.createdAt.toISOString(),
+      updatedAt:        p.updatedAt.toISOString(),
       cliente: {
         nombre:   p.cliente.nombre,
         apellido: p.cliente.apellido,
@@ -116,7 +117,7 @@ export const getPrestamos = unstable_cache(
     }))
   },
   ['prestamos-list'],
-  { revalidate: 30 }
+  { revalidate: 30, tags: ['prestamos-list'] }
 )
 
 export const getPagos = unstable_cache(
@@ -140,12 +141,12 @@ export const getPagos = unstable_cache(
       metodoPago:  p.metodoPago,
       notas:       p.notas,
       createdAt:   p.createdAt.toISOString(),
-      cliente:  { nombre: p.cliente.nombre, apellido: p.cliente.apellido },
-      prestamo: { descripcion: p.prestamo.descripcion, montoCuota: Number(p.prestamo.montoCuota) },
+      cliente:     { nombre: p.cliente.nombre, apellido: p.cliente.apellido },
+      prestamo:    { descripcion: p.prestamo.descripcion, montoCuota: Number(p.prestamo.montoCuota) },
     }))
   },
   ['pagos-list'],
-  { revalidate: 20 }
+  { revalidate: 20, tags: ['pagos-list'] }
 )
 
 export const getReportesData = unstable_cache(
@@ -180,7 +181,7 @@ export const getReportesData = unstable_cache(
     }
   },
   ['reportes-data'],
-  { revalidate: 300 }
+  { revalidate: 300, tags: ['reportes-data'] }
 )
 
 export const getClienteDetalle = unstable_cache(
@@ -199,35 +200,35 @@ export const getClienteDetalle = unstable_cache(
 
     return {
       cliente: {
-        id:        cliente.id,
-        userId:    cliente.userId,
-        nombre:    cliente.nombre,
-        apellido:  cliente.apellido,
-        telefono:  cliente.telefono,
-        email:     cliente.email,
-        dni:       cliente.dni,
-        direccion: cliente.direccion,
-        notas:     cliente.notas,
+        id:         cliente.id,
+        userId:     cliente.userId,
+        nombre:     cliente.nombre,
+        apellido:   cliente.apellido,
+        telefono:   cliente.telefono,
+        email:      cliente.email,
+        dni:        cliente.dni,
+        direccion:  cliente.direccion,
+        notas:      cliente.notas,
         fotoDniUrl: cliente.fotoDniUrl,
-        activo:    cliente.activo,
-        createdAt: cliente.createdAt.toISOString(),
-        updatedAt: cliente.updatedAt.toISOString(),
+        activo:     cliente.activo,
+        createdAt:  cliente.createdAt.toISOString(),
+        updatedAt:  cliente.updatedAt.toISOString(),
       },
       prestamos: prestamos.map(p => ({
-        id:              p.id,
-        clienteId:       p.clienteId,
-        descripcion:     p.descripcion,
-        montoTotal:      Number(p.montoTotal),
-        montoPagado:     Number(p.montoPagado),
-        montoCuota:      Number(p.montoCuota),
-        cantidadCuotas:  p.cantidadCuotas,
-        cuotasPagadas:   p.cuotasPagadas,
-        fechaInicio:     p.fechaInicio.toISOString(),
+        id:               p.id,
+        clienteId:        p.clienteId,
+        descripcion:      p.descripcion,
+        montoTotal:       Number(p.montoTotal),
+        montoPagado:      Number(p.montoPagado),
+        montoCuota:       Number(p.montoCuota),
+        cantidadCuotas:   p.cantidadCuotas,
+        cuotasPagadas:    p.cuotasPagadas,
+        fechaInicio:      p.fechaInicio.toISOString(),
         fechaVencimiento: p.fechaVencimiento?.toISOString() ?? null,
-        estado:          p.estado,
-        notas:           p.notas,
-        createdAt:       p.createdAt.toISOString(),
-        updatedAt:       p.updatedAt.toISOString(),
+        estado:           p.estado,
+        notas:            p.notas,
+        createdAt:        p.createdAt.toISOString(),
+        updatedAt:        p.updatedAt.toISOString(),
       })),
       pagos: pagos.map(p => ({
         id:          p.id,
@@ -241,5 +242,5 @@ export const getClienteDetalle = unstable_cache(
     }
   },
   ['cliente-detalle'],
-  { revalidate: 30 }
+  { revalidate: 30, tags: ['cliente-detalle'] }
 )

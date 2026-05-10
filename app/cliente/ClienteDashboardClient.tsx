@@ -149,7 +149,6 @@ export default function ClienteDashboardClient({ data }: { data: DashboardData }
 
           {/* Grid PC: 2 col / Mobile: 1 col */}
           <div className="dashboard-grid">
-
             {/* Card deuda principal */}
             <div style={{
               background: 'var(--accent)', borderRadius: 'var(--radius-lg)',
@@ -210,14 +209,15 @@ export default function ClienteDashboardClient({ data }: { data: DashboardData }
                 ))}
               </div>
             </div>
-            {/* Score LeoCash */}
+          </div>
+          {/* Score LeoCash */}
             {data.puntaje && (() => {
               const ESTADOS: Record<string, { label: string; color: string; bg: string; accion: string }> = {
-                vip:         { label: '⭐ VIP',             color: 'var(--accent)',  bg: 'var(--accent-dim)',    accion: 'Podés solicitar hasta 50% más de crédito' },
-                cumplidor:   { label: '✓ Cumplidor',        color: '#0ea5e9',        bg: 'rgba(14,165,233,0.1)', accion: 'Podés renovar el mismo monto' },
-                observacion: { label: '⚠ En Observación',  color: 'var(--amber)',   bg: 'var(--amber-dim)',     accion: 'Renovación sin aumento de monto' },
-                moroso:      { label: '✗ Moroso',           color: 'var(--red)',     bg: 'var(--red-dim)',       accion: 'No se otorgan nuevos créditos' },
-                bloqueado:   { label: '🔒 Bloqueado',       color: '#7c3aed',        bg: 'rgba(124,58,237,0.1)', accion: 'Cuenta bloqueada por mora' },
+                vip:         { label: '⭐ VIP',            color: 'var(--accent)',  bg: 'var(--accent-dim)',    accion: 'Podés solicitar hasta 50% más de crédito' },
+                cumplidor:   { label: '✓ Cumplidor',       color: '#0ea5e9',        bg: 'rgba(14,165,233,0.1)', accion: 'Podés renovar el mismo monto' },
+                observacion: { label: '⚠ En Observación', color: 'var(--amber)',   bg: 'var(--amber-dim)',     accion: 'Renovación sin aumento de monto' },
+                moroso:      { label: '✗ Moroso',          color: 'var(--red)',     bg: 'var(--red-dim)',       accion: 'No se otorgan nuevos créditos' },
+                bloqueado:   { label: '🔒 Bloqueado',      color: '#7c3aed',        bg: 'rgba(124,58,237,0.1)', accion: 'Cuenta bloqueada por mora' },
               }
               const cfg = ESTADOS[data.puntaje!.estado] ?? ESTADOS.cumplidor
               const pct = Math.min(100, Math.round((data.puntaje!.puntos_actual / 200) * 100))
@@ -253,7 +253,6 @@ export default function ClienteDashboardClient({ data }: { data: DashboardData }
                 </section>
               )
             })()}
-          </div>
 
           {/* Acciones */}
           <section>
@@ -319,7 +318,7 @@ export default function ClienteDashboardClient({ data }: { data: DashboardData }
                   Cancelá el total restante y obtené un descuento especial. Contactanos por WhatsApp para coordinar.
                 </p>
                 <a
-                  href={`https://wa.me/59162292741?text=${encodeURIComponent(`Hola! Soy ${data.cliente.nombre} ${data.cliente.apellido} y me gustaría consultar sobre liquidar mi deuda total.`)}`}
+                  href={`https://wa.me/5493834330701?text=${encodeURIComponent(`Hola! Soy ${data.cliente.nombre} ${data.cliente.apellido} y me gustaría consultar sobre liquidar mi deuda total.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
