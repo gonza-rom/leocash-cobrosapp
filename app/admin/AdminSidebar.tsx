@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import Image from 'next/image'
+import Link from 'next/link'
 import type { Perfil } from '@/types'
 
 const NAV = [
@@ -52,6 +53,23 @@ export default function AdminSidebar({ perfil }: { perfil: Perfil }) {
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
 
+  const linkStyle = (active: boolean) => ({
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '0.7rem 0.875rem', borderRadius: 'var(--radius-sm)',
+    background: active ? 'var(--accent-dim)' : 'transparent',
+    border: active ? '1px solid rgba(0,107,50,0.15)' : '1px solid transparent',
+    color: active ? 'var(--accent)' : 'var(--text-2)',
+    textDecoration: 'none', fontSize: 14, fontWeight: active ? 700 : 500,
+    transition: 'all 0.15s',
+  } as const)
+
+  const bottomLinkStyle = (active: boolean) => ({
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+    textDecoration: 'none',
+    color: active ? 'var(--accent)' : 'var(--text-3)',
+    transition: 'color 0.15s', minWidth: 48, padding: '2px 0',
+  } as const)
+
   return (
     <>
       {/* ── SIDEBAR PC ── */}
@@ -76,21 +94,17 @@ export default function AdminSidebar({ perfil }: { perfil: Perfil }) {
           {NAV.map(item => {
             const active = isActive(item.href)
             return (
-              <a key={item.href} href={item.href} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '0.7rem 0.875rem', borderRadius: 'var(--radius-sm)',
-                background: active ? 'var(--accent-dim)' : 'transparent',
-                border: active ? '1px solid rgba(0,107,50,0.15)' : '1px solid transparent',
-                color: active ? 'var(--accent)' : 'var(--text-2)',
-                textDecoration: 'none', fontSize: 14, fontWeight: active ? 700 : 500,
-                transition: 'all 0.15s',
-              }}
-              onMouseOver={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
-              onMouseOut={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={true}
+                style={linkStyle(active)}
+                onMouseOver={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--bg-2)' }}
+                onMouseOut={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 {item.icon(active)}
                 {item.label}
-              </a>
+              </Link>
             )
           })}
         </nav>
@@ -106,7 +120,9 @@ export default function AdminSidebar({ perfil }: { perfil: Perfil }) {
               <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Admin</div>
             </div>
           </div>
-          <button onClick={handleLogout} style={{ width: '100%', padding: '0.5rem', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, transition: 'all 0.15s' }}
+          <button
+            onClick={handleLogout}
+            style={{ width: '100%', padding: '0.5rem', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, transition: 'all 0.15s' }}
             onMouseOver={e => { (e.currentTarget as HTMLElement).style.color = 'var(--red)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(186,26,26,0.3)' }}
             onMouseOut={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-2)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
           >
@@ -115,7 +131,7 @@ export default function AdminSidebar({ perfil }: { perfil: Perfil }) {
         </div>
       </aside>
 
-      {/* ── HEADER MOBILE (solo logo + nombre + avatar) ── */}
+      {/* ── HEADER MOBILE ── */}
       <header className="admin-mobile-header" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
         background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(12px)',
@@ -136,7 +152,10 @@ export default function AdminSidebar({ perfil }: { perfil: Perfil }) {
           <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13 }}>
             {perfil.nombre.charAt(0).toUpperCase()}
           </div>
-          <button onClick={handleLogout} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.75rem', color: 'var(--text-3)', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 700 }}>
+          <button
+            onClick={handleLogout}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.75rem', color: 'var(--text-3)', cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 700 }}
+          >
             Salir
           </button>
         </div>
@@ -152,17 +171,17 @@ export default function AdminSidebar({ perfil }: { perfil: Perfil }) {
           {NAV.map(item => {
             const active = isActive(item.href)
             return (
-              <a key={item.href} href={item.href} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                textDecoration: 'none',
-                color: active ? 'var(--accent)' : 'var(--text-3)',
-                transition: 'color 0.15s', minWidth: 48, padding: '2px 0',
-              }}>
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={true}
+                style={bottomLinkStyle(active)}
+              >
                 {item.icon(active)}
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                   {item.label}
                 </span>
-              </a>
+              </Link>
             )
           })}
         </div>

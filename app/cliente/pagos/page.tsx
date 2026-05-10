@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
 import { redirect } from 'next/navigation'
 import ClienteLayout from '../ClienteLayout'
 
@@ -13,15 +14,29 @@ export default async function ClientePagosPage() {
   const cliente = await prisma.cliente.findFirst({ where: { userId: user.id } })
   if (!cliente) redirect('/auth/login')
 
-  const pagos = await prisma.pago.findMany({
-    where: { clienteId: cliente.id },
-    orderBy: { fechaPago: 'desc' },
-    include: { prestamo: { select: { descripcion: true, cantidadCuotas: true } } },
-  })
+  const getPagos = unstable_cache(
+    async (clienteId: string) => {
+      const pagos = await prisma.pago.findMany({
+        where: { clienteId },
+        orderBy: { fechaPago: 'desc' },
+        include: { prestamo: { select: { descripcion: true, cantidadCuotas: true } } },
+      })
+      return pagos.map(p => ({
+        id:          p.id,
+        monto:       Number(p.monto),
+        fechaPago:   p.fechaPago.toISOString(),
+        numeroCuota: p.numeroCuota,
+        metodoPago:  p.metodoPago,
+        descripcion: p.prestamo.descripcion,
+      }))
+    },
+    [`cliente-pagos-${cliente.id}`],
+    { revalidate: 20 }
+  )
 
-  const total = pagos.reduce((s, p) => s + Number(p.monto), 0)
+  const pagos = await getPagos(cliente.id)
+  const total = pagos.reduce((s, p) => s + p.monto, 0)
 
-  // Agrupar por mes
   const porMes: Record<string, typeof pagos> = {}
   pagos.forEach(p => {
     const mes = new Date(p.fechaPago).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
@@ -31,12 +46,9 @@ export default async function ClientePagosPage() {
 
   return (
     <ClienteLayout cliente={{ nombre: cliente.nombre, apellido: cliente.apellido }} currentPath="/cliente/pagos">
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>
-            Historial de Pagos
-          </h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>Historial de Pagos</h2>
           <p style={{ color: 'var(--text-2)', fontSize: 14 }}>{pagos.length} pagos registrados</p>
         </div>
         <div style={{ background: 'var(--accent)', borderRadius: 'var(--radius)', padding: '0.75rem 1.25rem', textAlign: 'right' }}>
@@ -51,24 +63,18 @@ export default async function ClientePagosPage() {
         </div>
       )}
 
-      {/* Agrupado por mes */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {Object.entries(porMes).map(([mes, pagosMes]) => (
           <div key={mes}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{mes}</span>
               <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>
-                {fmt(pagosMes.reduce((s, p) => s + Number(p.monto), 0))}
+                {fmt(pagosMes.reduce((s, p) => s + p.monto, 0))}
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {pagosMes.map(p => (
-                <div key={p.id} style={{
-                  background: '#fff', border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)', padding: '1rem 1.125rem',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem',
-                  boxShadow: 'var(--shadow-sm)',
-                }}>
+                <div key={p.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem 1.125rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', boxShadow: 'var(--shadow-sm)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <svg width="18" height="18" fill="var(--accent)" viewBox="0 0 24 24">
@@ -76,7 +82,7 @@ export default async function ClientePagosPage() {
                       </svg>
                     </div>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{p.prestamo.descripcion}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{p.descripcion}</div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
                           {new Date(p.fechaPago).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}
@@ -93,7 +99,7 @@ export default async function ClientePagosPage() {
                     </div>
                   </div>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
-                    {fmt(Number(p.monto))}
+                    {fmt(p.monto)}
                   </span>
                 </div>
               ))}

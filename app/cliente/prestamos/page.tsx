@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
 import { redirect } from 'next/navigation'
 import ClienteLayout from '../ClienteLayout'
 
@@ -13,10 +14,31 @@ export default async function ClientePrestamosPage() {
   const cliente = await prisma.cliente.findFirst({ where: { userId: user.id } })
   if (!cliente) redirect('/auth/login')
 
-  const prestamos = await prisma.prestamo.findMany({
-    where: { clienteId: cliente.id },
-    orderBy: { createdAt: 'desc' },
-  })
+  const getPrestamos = unstable_cache(
+    async (clienteId: string) => {
+      const prestamos = await prisma.prestamo.findMany({
+        where: { clienteId },
+        orderBy: { createdAt: 'desc' },
+      })
+      return prestamos.map(p => ({
+        id:              p.id,
+        descripcion:     p.descripcion,
+        estado:          p.estado,
+        montoTotal:      Number(p.montoTotal),
+        montoPagado:     Number(p.montoPagado),
+        montoCuota:      Number(p.montoCuota),
+        cantidadCuotas:  p.cantidadCuotas,
+        cuotasPagadas:   p.cuotasPagadas,
+        fechaInicio:     p.fechaInicio.toISOString(),
+        fechaVencimiento: p.fechaVencimiento?.toISOString() ?? null,
+        notas:           p.notas,
+      }))
+    },
+    [`cliente-prestamos-${cliente.id}`],
+    { revalidate: 20 }
+  )
+
+  const prestamos = await getPrestamos(cliente.id)
 
   return (
     <ClienteLayout cliente={{ nombre: cliente.nombre, apellido: cliente.apellido }} currentPath="/cliente/prestamos">
@@ -34,15 +56,10 @@ export default async function ClientePrestamosPage() {
           </div>
         )}
         {prestamos.map(p => {
-          const pendiente = Number(p.montoTotal) - Number(p.montoPagado)
-          const pct = Number(p.montoTotal) > 0 ? Math.round((Number(p.montoPagado) / Number(p.montoTotal)) * 100) : 0
+          const pendiente = p.montoTotal - p.montoPagado
+          const pct = p.montoTotal > 0 ? Math.round((p.montoPagado / p.montoTotal) * 100) : 0
           return (
-            <div key={p.id} style={{
-              background: '#fff', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)', padding: '1.25rem',
-              borderLeft: `4px solid ${p.estado === 'pagado' ? 'var(--green)' : 'var(--accent)'}`,
-              boxShadow: 'var(--shadow-sm)',
-            }}>
+            <div key={p.id} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', borderLeft: `4px solid ${p.estado === 'pagado' ? 'var(--green)' : 'var(--accent)'}`, boxShadow: 'var(--shadow-sm)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: 8, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)', marginBottom: 3 }}>{p.descripcion}</div>
@@ -50,18 +67,17 @@ export default async function ClientePrestamosPage() {
                     Desde {new Date(p.fechaInicio).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </div>
                 </div>
-                <span style={{ padding: '0.3rem 0.875rem', borderRadius: 20, fontSize: 12, fontWeight: 700, background: p.estado === 'pagado' ? 'var(--accent-dim)' : 'var(--accent-dim)', color: p.estado === 'pagado' ? 'var(--green)' : 'var(--accent)', border: `1px solid ${p.estado === 'pagado' ? 'rgba(0,107,50,0.2)' : 'rgba(0,107,50,0.2)'}` }}>
+                <span style={{ padding: '0.3rem 0.875rem', borderRadius: 20, fontSize: 12, fontWeight: 700, background: 'var(--accent-dim)', color: p.estado === 'pagado' ? 'var(--green)' : 'var(--accent)', border: '1px solid rgba(0,107,50,0.2)' }}>
                   {p.estado}
                 </span>
               </div>
 
-              {/* Stats grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: '1rem' }}>
                 {[
-                  { label: 'Monto total', value: fmt(Number(p.montoTotal)), color: 'var(--text)' },
-                  { label: 'Pagado', value: fmt(Number(p.montoPagado)), color: 'var(--accent)' },
-                  { label: 'Pendiente', value: fmt(pendiente), color: pendiente > 0 ? 'var(--amber)' : 'var(--accent)' },
-                  { label: 'Cuota', value: `${fmt(Number(p.montoCuota))} × ${p.cantidadCuotas}`, color: 'var(--text-2)' },
+                  { label: 'Monto total', value: fmt(p.montoTotal),  color: 'var(--text)' },
+                  { label: 'Pagado',      value: fmt(p.montoPagado), color: 'var(--accent)' },
+                  { label: 'Pendiente',   value: fmt(pendiente),     color: pendiente > 0 ? 'var(--amber)' : 'var(--accent)' },
+                  { label: 'Cuota',       value: `${fmt(p.montoCuota)} × ${p.cantidadCuotas}`, color: 'var(--text-2)' },
                 ].map(s => (
                   <div key={s.label} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)', padding: '0.625rem 0.75rem' }}>
                     <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 3 }}>{s.label}</div>
@@ -70,7 +86,6 @@ export default async function ClientePrestamosPage() {
                 ))}
               </div>
 
-              {/* Barra progreso */}
               <div style={{ marginBottom: '0.875rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--text-2)', fontWeight: 600 }}>
                   <span>Cuotas: {p.cuotasPagadas} de {p.cantidadCuotas} pagadas</span>
@@ -81,16 +96,9 @@ export default async function ClientePrestamosPage() {
                 </div>
               </div>
 
-              {/* Indicadores cuotas */}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {Array.from({ length: p.cantidadCuotas }, (_, i) => (
-                  <div key={i} style={{
-                    width: 22, height: 22, borderRadius: 6,
-                    background: i < p.cuotasPagadas ? 'var(--accent)' : 'var(--bg-3)',
-                    border: `1px solid ${i < p.cuotasPagadas ? 'transparent' : 'var(--border)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 9, color: i < p.cuotasPagadas ? '#fff' : 'var(--text-3)', fontWeight: 700,
-                  }}>
+                  <div key={i} style={{ width: 22, height: 22, borderRadius: 6, background: i < p.cuotasPagadas ? 'var(--accent)' : 'var(--bg-3)', border: `1px solid ${i < p.cuotasPagadas ? 'transparent' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: i < p.cuotasPagadas ? '#fff' : 'var(--text-3)', fontWeight: 700 }}>
                     {i + 1}
                   </div>
                 ))}

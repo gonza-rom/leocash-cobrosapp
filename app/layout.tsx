@@ -7,14 +7,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Leo Cash',
     description: 'Sistema de gestión de cobros y préstamos',
-    images: [
-      {
-        url: '/logo-leocash.png',
-        width: 512,
-        height: 512,
-        alt: 'Leo Cash',
-      },
-    ],
+    images: [{ url: '/logo-leocash.png', width: 512, height: 512, alt: 'Leo Cash' }],
     type: 'website',
   },
   twitter: {
@@ -24,8 +17,12 @@ export const metadata: Metadata = {
     images: ['/logo-leocash.png'],
   },
   icons: {
-    icon: '/logo-leocash.png',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/logo-leocash.png', type: 'image/png', sizes: '512x512' },
+    ],
     apple: '/logo-leocash.png',
+    shortcut: '/favicon.ico',
   },
 }
 

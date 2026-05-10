@@ -1,32 +1,28 @@
-import { prisma } from '@/lib/prisma'
+import { getReportesData } from '@/lib/queries'
 
 const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n)
 
 export default async function ReportesPage() {
-  const [prestamos, pagos, totalClientes] = await Promise.all([
-    prisma.prestamo.findMany({ include: { cliente: { select: { id: true, nombre: true, apellido: true } } } }),
-    prisma.pago.findMany({ orderBy: { fechaPago: 'desc' }, include: { cliente: { select: { nombre: true, apellido: true } } } }),
-    prisma.cliente.count({ where: { activo: true } }),
-  ])
+  const { prestamos, pagos, totalClientes } = await getReportesData()
 
-  const totalPrestado  = prestamos.reduce((s, p) => s + Number(p.montoTotal), 0)
-  const totalCobrado   = prestamos.reduce((s, p) => s + Number(p.montoPagado), 0)
+  const totalPrestado  = prestamos.reduce((s, p) => s + p.montoTotal, 0)
+  const totalCobrado   = prestamos.reduce((s, p) => s + p.montoPagado, 0)
   const totalPendiente = totalPrestado - totalCobrado
   const prestActivos   = prestamos.filter(p => p.estado === 'activo').length
   const prestPagados   = prestamos.filter(p => p.estado === 'pagado').length
+  const pct = totalPrestado > 0 ? Math.round((totalCobrado / totalPrestado) * 100) : 0
 
   const deudaPorCliente: Record<string, { nombre: string; deuda: number }> = {}
   prestamos.filter(p => p.estado === 'activo').forEach(p => {
-    const pendiente = Number(p.montoTotal) - Number(p.montoPagado)
+    const pendiente = p.montoTotal - p.montoPagado
     if (!deudaPorCliente[p.clienteId]) deudaPorCliente[p.clienteId] = { nombre: `${p.cliente.nombre} ${p.cliente.apellido}`, deuda: 0 }
     deudaPorCliente[p.clienteId].deuda += pendiente
   })
   const top5 = Object.values(deudaPorCliente).sort((a, b) => b.deuda - a.deuda).slice(0, 5)
 
   const mesActual = new Date().toISOString().slice(0, 7)
-  const pagosMes = pagos.filter(p => p.fechaPago.toISOString().startsWith(mesActual))
-  const ingresosMes = pagosMes.reduce((s, p) => s + Number(p.monto), 0)
-  const pct = totalPrestado > 0 ? Math.round((totalCobrado / totalPrestado) * 100) : 0
+  const pagosMes = pagos.filter(p => p.fechaPago.startsWith(mesActual))
+  const ingresosMes = pagosMes.reduce((s, p) => s + p.monto, 0)
 
   return (
     <div style={{ animation: 'fadeUp 0.4s ease' }}>
@@ -35,10 +31,7 @@ export default async function ReportesPage() {
         <p style={{ color: 'var(--text-2)', fontSize: 14 }}>Resumen general del sistema</p>
       </div>
 
-      {/* KPIs bento */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem', marginBottom: '1.5rem' }} className="reportes-kpi-grid">
-
-        {/* Card principal */}
         <div style={{ gridColumn: 'span 2', background: 'var(--accent)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', position: 'relative', overflow: 'hidden', boxShadow: '0 8px 32px var(--accent-dim)' }}>
           <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
@@ -62,12 +55,12 @@ export default async function ReportesPage() {
         </div>
 
         {[
-          { label: 'Clientes activos',   value: String(totalClientes), color: 'var(--accent)' },
-          { label: 'Préstamos activos',  value: String(prestActivos),  color: 'var(--amber)' },
-          { label: 'Préstamos pagados',  value: String(prestPagados),  color: 'var(--text-2)' },
-          { label: `Ingresos ${mesActual.slice(5)}`, value: fmt(ingresosMes), color: 'var(--accent)' },
-          { label: 'Pagos este mes',     value: String(pagosMes.length), color: 'var(--text-2)' },
-          { label: 'Pagos totales',      value: String(pagos.length),  color: 'var(--text-3)' },
+          { label: 'Clientes activos',             value: String(totalClientes),   color: 'var(--accent)' },
+          { label: 'Préstamos activos',             value: String(prestActivos),    color: 'var(--amber)' },
+          { label: 'Préstamos pagados',             value: String(prestPagados),    color: 'var(--text-2)' },
+          { label: `Ingresos ${mesActual.slice(5)}`,value: fmt(ingresosMes),        color: 'var(--accent)' },
+          { label: 'Pagos este mes',                value: String(pagosMes.length), color: 'var(--text-2)' },
+          { label: 'Pagos totales',                 value: String(pagos.length),    color: 'var(--text-3)' },
         ].map((k, i) => (
           <div key={i} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.125rem', boxShadow: 'var(--shadow-sm)' }}>
             <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, marginBottom: 8 }}>{k.label}</div>
@@ -76,7 +69,6 @@ export default async function ReportesPage() {
         ))}
       </div>
 
-      {/* Barra progreso */}
       <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Progreso de cobro global</span>
@@ -87,10 +79,7 @@ export default async function ReportesPage() {
         </div>
       </div>
 
-      {/* Grid inferior */}
       <div className="reportes-bottom-grid">
-
-        {/* Top deudores */}
         <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: '1rem' }}>Top 5 deudores</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -109,7 +98,6 @@ export default async function ReportesPage() {
           </div>
         </div>
 
-        {/* Pagos del mes */}
         <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Pagos del mes</h2>
@@ -125,10 +113,10 @@ export default async function ReportesPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{p.cliente.nombre} {p.cliente.apellido}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.fechaPago.toISOString().split('T')[0]}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.fechaPago.split('T')[0]}</div>
                   </div>
                 </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>{fmt(Number(p.monto))}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>{fmt(p.monto)}</span>
               </div>
             ))}
             {pagosMes.length > 10 && <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-3)', paddingTop: 4 }}>+{pagosMes.length - 10} más</div>}
@@ -137,9 +125,7 @@ export default async function ReportesPage() {
       </div>
 
       <style>{`
-        .reportes-kpi-grid { }
         .reportes-bottom-grid { display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; }
-
         @media (min-width: 900px) {
           .reportes-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
           .reportes-bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
