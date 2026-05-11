@@ -60,6 +60,8 @@ model Prestamo {
   puntajes         Puntaje[]
   historialPuntos  HistorialPuntos[]
   capitalOriginal  Decimal   @default(0) @map("capital_original") @db.Decimal(12, 2)
+  frecuenciaPago   String    @default("mensual") @map("frecuencia_pago")
+  diaEspecifico    Int?      @map("dia_especifico")
 
   @@map("prestamos")
 }
