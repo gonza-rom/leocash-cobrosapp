@@ -62,6 +62,7 @@ model Prestamo {
   capitalOriginal  Decimal   @default(0) @map("capital_original") @db.Decimal(12, 2)
   frecuenciaPago   String    @default("mensual") @map("frecuencia_pago")
   diaEspecifico    Int?      @map("dia_especifico")
+  diasSemana  Int[]     @default([]) @map("dias_semana")
 
   @@map("prestamos")
 }

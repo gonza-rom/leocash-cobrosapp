@@ -17,6 +17,7 @@ export default async function PrestamosPage() {
     fecha_vencimiento: p.fechaVencimiento,
     estado:           p.estado,
     notas:            p.notas,
+    dias_semana:      p.diasSemana ?? null,
     created_at:       p.createdAt,
     updated_at:       p.updatedAt,
     clientes: {

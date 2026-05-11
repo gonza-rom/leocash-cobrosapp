@@ -107,6 +107,7 @@ export const getPrestamos = unstable_cache(
       fechaVencimiento: p.fechaVencimiento?.toISOString() ?? null,
       estado:           p.estado,
       notas:            p.notas ?? '',
+      diasSemana:       p.diasSemana ?? null,
       createdAt:        p.createdAt.toISOString(),
       updatedAt:        p.updatedAt.toISOString(),
       cliente: {

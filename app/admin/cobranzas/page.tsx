@@ -6,25 +6,34 @@ function calcularProximaCuota(
   cuotasPagadas: number,
   frecuenciaPago: string,
   diaEspecifico: number | null,
+  diasSemana: number[] | null,   // ← AGREGAR ESTE PARÁMETRO
   notas: string | null
 ): Date {
   const base = new Date(fechaInicio)
   base.setHours(0, 0, 0, 0)
   const n = cuotasPagadas + 1
 
-  // Determinar frecuencia: primero campo DB, luego fallback a notas
   let frecuencia = frecuenciaPago
 
   if (!frecuencia || frecuencia === 'mensual') {
-    // Verificar si notas tiene algo más específico (préstamos viejos)
-    if (notas?.includes('Diario'))     frecuencia = 'diario'
+    if (notas?.includes('Diario'))          frecuencia = 'diario'
     else if (notas?.includes('Semanal'))    frecuencia = 'semanal'
     else if (notas?.includes('Quincenal'))  frecuencia = 'quincenal'
     else if (notas?.includes('específico')) frecuencia = 'dia_especifico'
-    // si no hay nada, queda 'mensual'
   }
 
-  // Día específico: primero campo DB, luego fallback a notas
+  if (frecuencia === 'diario') {
+    const diasValidos = diasSemana && diasSemana.length > 0 ? diasSemana : [0,1,2,3,4,5,6]
+    let cuotasContadas = 0
+    const fecha = new Date(base)
+    fecha.setDate(fecha.getDate() + 1)
+    while (cuotasContadas < n) {
+      if (diasValidos.includes(fecha.getDay())) cuotasContadas++
+      if (cuotasContadas < n) fecha.setDate(fecha.getDate() + 1)
+    }
+    return fecha
+  }
+
   let dia = diaEspecifico
   if (!dia && notas) {
     const match = notas.match(/Día de cobro: (\d+)/)
@@ -45,7 +54,6 @@ function calcularProximaCuota(
   }
 
   const diasPorFrecuencia: Record<string, number> = {
-    diario:    1,
     semanal:   7,
     quincenal: 15,
   }
@@ -75,7 +83,6 @@ export default async function CobranzasPage() {
     let diasRestantes: number
 
     if (esFrecuenciaManual) {
-      // Sin frecuencia → usar vencimiento final
       fechaReferencia = p.fechaVencimiento ? new Date(p.fechaVencimiento) : new Date()
       diasRestantes = p.fechaVencimiento
         ? Math.floor((fechaReferencia.getTime() - hoy.getTime()) / 86400000)
@@ -86,6 +93,7 @@ export default async function CobranzasPage() {
         p.cuotasPagadas,
         p.frecuenciaPago,
         p.diaEspecifico,
+        p.diasSemana,   // ← AGREGAR ESTE ARGUMENTO
         p.notas
       )
       diasRestantes = Math.floor(
@@ -95,12 +103,12 @@ export default async function CobranzasPage() {
 
     let estado: 'vencido' | 'hoy' | 'manana' | 'esta_semana' | 'este_mes' | 'futuro' | 'sin_fecha' = 'sin_fecha'
 
-    if      (diasRestantes < 0)                estado = 'vencido'
-    else if (diasRestantes === 0)              estado = 'hoy'
-    else if (diasRestantes === 1)              estado = 'manana'
-    else if (diasRestantes <= 7)               estado = 'esta_semana'
-    else if (fechaReferencia <= finMes)        estado = 'este_mes'
-    else                                       estado = 'futuro'
+    if      (diasRestantes < 0)         estado = 'vencido'
+    else if (diasRestantes === 0)       estado = 'hoy'
+    else if (diasRestantes === 1)       estado = 'manana'
+    else if (diasRestantes <= 7)        estado = 'esta_semana'
+    else if (fechaReferencia <= finMes) estado = 'este_mes'
+    else                                estado = 'futuro'
 
     return {
       id:               p.id,

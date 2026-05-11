@@ -29,6 +29,8 @@ interface Prestamo {
   created_at: string
   updated_at: string
   clientes: { nombre: string; apellido: string; telefono: string }
+  dias_semana: number[] | null
+
 }
 
 const FRECUENCIAS = [
@@ -61,6 +63,7 @@ const FORM_VACIO = {
   modo_cuota: 'automatico' as 'automatico' | 'manual',
   monto_cuota_manual: '',
   frecuencia_pago: 'mensual', dia_especifico: '',
+  dias_semana: [1,2,3,4,5,6] as number[],
   fecha_inicio: new Date().toISOString().split('T')[0],
   fecha_vencimiento: '', notas: '',
 }
@@ -122,6 +125,7 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
       monto_cuota_manual: String(p.monto_cuota),
       frecuencia_pago:    'manual',
       dia_especifico:     '',
+      dias_semana:        p.dias_semana ?? [1,2,3,4,5,6], // ← AGREGAR
       fecha_inicio:       p.fecha_inicio.split('T')[0],
       fecha_vencimiento:  p.fecha_vencimiento?.split('T')[0] ?? '',
       notas:              p.notas ?? '',
@@ -150,7 +154,9 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
       const notas_completas = [
         form.notas,
         `Frecuencia: ${FRECUENCIAS.find(f => f.value === form.frecuencia_pago)?.label}`,
-        form.frecuencia_pago === 'dia_especifico' ? `Día de cobro: ${form.dia_especifico}` : '',
+        form.frecuencia_pago === 'diario' && form.dias_semana.length < 7
+        ? `Días: ${form.dias_semana.map(d => ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d]).join(', ')}`
+        : '',
         interes > 0 ? `Interés: ${interes}%` : '',
         form.modo_cuota === 'manual' ? 'Cuota manual' : '',
       ].filter(Boolean).join(' | ')
@@ -170,6 +176,7 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
           estado:            'activo',
           frecuencia_pago:   form.frecuencia_pago,
           dia_especifico:    form.frecuencia_pago === 'dia_especifico' ? Number(form.dia_especifico) || null : null,
+          dias_semana: form.frecuencia_pago === 'diario' ? form.dias_semana : null,
         })
         .select('*, clientes(nombre, apellido, telefono)')
         .single()
@@ -188,6 +195,7 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
         fecha_vencimiento: data.fecha_vencimiento,
         estado: data.estado,
         notas: data.notas ?? '',
+        dias_semana: data.dias_semana ?? null,  // ← AGREGAR
         created_at: data.created_at,
         updated_at: data.updated_at,
         clientes: data.clientes,
@@ -641,6 +649,49 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
                       {FRECUENCIAS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                     </select>
                   </div>
+                  {form.frecuencia_pago === 'diario' && (
+                    <div>
+                      <label style={labelStyle}>Días de cobro</label>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {[
+                          { value: 1, label: 'Lun' },
+                          { value: 2, label: 'Mar' },
+                          { value: 3, label: 'Mié' },
+                          { value: 4, label: 'Jue' },
+                          { value: 5, label: 'Vie' },
+                          { value: 6, label: 'Sáb' },
+                          { value: 0, label: 'Dom' },
+                        ].map(d => {
+                          const activo = form.dias_semana.includes(d.value)
+                          return (
+                            <button
+                              key={d.value}
+                              type="button"
+                              onClick={() => setForm(p => ({
+                                ...p,
+                                dias_semana: activo
+                                  ? p.dias_semana.filter(x => x !== d.value)
+                                  : [...p.dias_semana, d.value],
+                              }))}
+                              style={{
+                                padding: '0.4rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                border: `1px solid ${activo ? 'var(--accent)' : 'var(--border)'}`,
+                                background: activo ? 'var(--accent)' : 'var(--bg-3)',
+                                color: activo ? '#fff' : 'var(--text-2)',
+                                cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                                fontFamily: 'var(--font-body)',
+                              }}
+                            >{d.label}</button>
+                          )
+                        })}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                        {form.dias_semana.length} días por semana seleccionados
+                      </div>
+                    </div>
+                  )}
+
                   {form.frecuencia_pago === 'dia_especifico' && (
                     <div>
                       <label style={labelStyle}>Día del mes (1-31) *</label>
@@ -649,7 +700,6 @@ export default function PrestamosClient({ prestamos: inicial }: { prestamos: Pre
                   )}
                 </>
               )}
-
               {/* Fechas */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
                 <div>
